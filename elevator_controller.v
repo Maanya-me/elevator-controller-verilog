@@ -3,12 +3,11 @@
 module elevator_controller(
     input clk,
     input reset,
-    input [2:0] request,      // floor requests (3 floors)
-    output reg [1:0] floor,   // current floor (0-2)
+    input [2:0] request,      // floor buttons
+    output reg [1:0] floor,   // current floor
     output reg door_open
 );
 
-// STATES
 parameter IDLE = 2'b00,
           MOVE_UP = 2'b01,
           MOVE_DOWN = 2'b10,
@@ -16,24 +15,18 @@ parameter IDLE = 2'b00,
 
 reg [1:0] state, next_state;
 
-// door timer
-reg [2:0] door_timer;  // keeps door open for few cycles
 
-// STATE REGISTER + FLOOR INIT
-
+// State register
 always @(posedge clk or posedge reset)
 begin
-    if(reset) begin
+    if(reset)
         state <= IDLE;
-        floor <= 0;         // start from ground floor
-        door_timer <= 0;
-    end
-    else begin
+    else
         state <= next_state;
-    end
 end
 
-// NEXT STATE LOGIC
+
+// Next state logic
 always @(*)
 begin
     case(state)
@@ -41,37 +34,22 @@ begin
         IDLE: begin
             if(request[floor])
                 next_state = OPEN_DOOR;
-
-            else if( (request > (1 << floor)) && (floor < 2) )
+            else if(request > (1 << floor))
                 next_state = MOVE_UP;
-
-            else if( (request < (1 << floor)) && (request != 0) && (floor > 0) )
+            else if(request < (1 << floor) && request != 0)
                 next_state = MOVE_DOWN;
-
             else
                 next_state = IDLE;
         end
 
-        MOVE_UP: begin
-            if(request[floor+1])
-                next_state = OPEN_DOOR;
-            else
-                next_state = IDLE;
-        end
+        MOVE_UP:
+            next_state = IDLE;
 
-        MOVE_DOWN: begin
-            if(request[floor-1])
-                next_state = OPEN_DOOR;
-            else
-                next_state = IDLE;
-        end
+        MOVE_DOWN:
+            next_state = IDLE;
 
-        OPEN_DOOR: begin
-            if(door_timer == 3)
-                next_state = IDLE;
-            else
-                next_state = OPEN_DOOR;
-        end
+        OPEN_DOOR:
+            next_state = IDLE;
 
         default:
             next_state = IDLE;
@@ -79,32 +57,27 @@ begin
     endcase
 end
 
-// OUTPUT + FLOOR UPDATE
+
+// Output logic
 always @(posedge clk)
 begin
     case(state)
 
-        IDLE: begin
+        IDLE:
             door_open <= 0;
-            door_timer <= 0;
-        end
 
         MOVE_UP: begin
+            floor <= floor + 1;
             door_open <= 0;
-            if(floor < 2)
-                floor <= floor + 1;
         end
 
         MOVE_DOWN: begin
+            floor <= floor - 1;
             door_open <= 0;
-            if(floor > 0)
-                floor <= floor - 1;
         end
 
-        OPEN_DOOR: begin
+        OPEN_DOOR:
             door_open <= 1;
-            door_timer <= door_timer + 1;
-        end
 
     endcase
 end
