@@ -1,5 +1,3 @@
-`timescale 1ns / 1ps
-
 module elevator_controller(
     input clk,
     input reset,
